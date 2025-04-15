@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>introl</title>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #000;
+        font-family: Arial, sans-serif;
+        color: white;
+        text-align: center;
+    }
+
+    canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    #playBtn, #resetBtn {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 15px 30px;
+        font-size: 20px;
+        background-color: #ff4081;
+        color: white;
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        transition: transform 0.3s;
+    }
+
+    #playBtn:hover, #resetBtn:hover {
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    #text {
+        position: relative;
+        z-index: 2;
+        font-size: 28px;
+        font-weight: bold;
+        display: none;
+        margin-top: 80px;
+        white-space: pre-wrap;
+        padding: 20px;
+        border-radius: 10px;
+        color: #000000; /* Black text */
+        background-color: rgba(255, 255, 255, 0.3); /* Semi-transparent white background */
+    }
+
+    #text-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        display: none;
+        z-index: 1;
+        opacity: 0;
+        transition: opacity 1s ease-in-out;
+    }
+
+    #resetBtn {
+        display: none;
+        margin-top: 30px;
+        background-color: #607d8b;
+    }
+
+    .letter {
+        display: inline-block;
+        opacity: 0;
+        transform: translate(0, 0);
+        animation: jumpIn 1s forwards;
+    }
+
+    @keyframes jumpIn {
+        0% {
+            opacity: 0;
+            transform: translate(var(--x), var(--y)) scale(0.3) rotate(90deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translate(0, 0) scale(1) rotate(0deg);
+        }
+    }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div id="text-background"></div>
+<button id="playBtn">▶ Bắt đầu</button>
+<div id="text"></div>
+<button id="resetBtn"> Reset</button>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let W = canvas.width = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+
+  let particles = [];
+  let trails = [];
+  let rockets = [];
+
+  function random(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
+  class Rocket {
+    constructor() {
+      this.x = random(W * 0.4, W * 0.6);
+      this.y = H;
+      this.vx = random(-1, 1);
+      this.vy = random(-12, -8);
+      this.color = `hsl(${Math.floor(random(0, 360))}, 100%, 80%)`;
+      this.radius = 4;
+      this.alpha = 1;
+      this.lifetime = random(60, 80);
+    }
+
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy += 0.05;
+      this.alpha = Math.max(0, this.alpha - 0.005);
+      this.lifetime--;
+
+      if (Math.random() > 0.3) {
+        const trail = new Particle('trail');
+        trail.x = this.x;
+        trail.y = this.y;
+        trails.push(trail);
+      }
+
+      if (this.lifetime <= 0) {
+        explode(this.x, this.y, this.color);
+        return false;
+      }
+      return true;
+    }
+
+    draw() {
+      ctx.beginPath();
+      ctx.globalAlpha = this.alpha;
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  class Particle {
+    constructor(type = 'main', x, y, baseColor) {
+      this.type = type;
+      this.x = x || W / 2;
+      this.y = y || H * 0.4;
+      this.radius = type === 'sparkle' ? random(1, 3) : type === 'trail' ? random(1, 2.5) : random(3, 6);
+      this.color = this.getColor(baseColor);
+      this.speed = type === 'sparkle' ? random(3, 6) : type === 'trail' ? random(1, 2) : random(5, 10);
+      this.angle = random(0, Math.PI * 2);
+      this.friction = type === 'sparkle' ? 0.98 : type === 'trail' ? 0.96 : 0.94;
+      this.gravity = type === 'sparkle' ? 0.15 : type === 'trail' ? 0.05 : 0.25;
+      this.alpha = type === 'trail' ? random(0.4, 0.7) : 1;
+      this.decay = type === 'sparkle' ? random(0.01, 0.02) : type === 'trail' ? random(0.03, 0.05) : random(0.008, 0.015);
+      this.lifetime = type === 'trail' ? 20 : Infinity;
+    }
+
+    getColor(baseColor) {
+      if (this.type === 'trail') {
+        return `rgba(255, 255, 255, ${this.alpha})`;
+      } else if (this.type === 'sparkle') {
+        return `hsl(${Math.floor(random(0, 360))}, 100%, 90%)`;
+      } else {
+        const hue = baseColor ? parseInt(baseColor.match(/\d+/)[0]) : Math.floor(random(0, 360));
+        return `hsl(${hue}, 100%, 75%)`;
+      }
+    }
+
+    update() {
+      this.speed *= this.friction;
+      this.x += Math.cos(this.angle) * this.speed;
+      this.y += Math.sin(this.angle) * this.speed + this.gravity;
+      this.alpha -= this.decay;
+      this.lifetime--;
+    }
+
+    draw() {
+      ctx.beginPath();
+      ctx.globalAlpha = this.alpha;
+      ctx.shadowBlur = this.type === 'trail' ? 0 : 20;
+      ctx.shadowColor = this.color;
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function explode(x, y, baseColor) {
+    const particleCount = random(120, 180);
+    for (let i = 0; i < particleCount; i++) {
+      particles.push(new Particle('main', x, y, baseColor));
+    }
+
+    setTimeout(() => {
+      for (let i = 0; i < 80; i++) {
+        const sparkle = new Particle('sparkle', x + random(-80, 80), y + random(-80, 80));
+        particles.push(sparkle);
+      }
+    }, 800);
+  }
+
+  function animate() {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+    ctx.fillRect(0, 0, W, H);
+
+    rockets.forEach((rocket, i) => {
+      if (!rocket.update()) {
+        rockets.splice(i, 1);
+      } else {
+        rocket.draw();
+      }
+    });
+
+    trails.forEach((t, i) => {
+      t.update();
+      t.draw();
+      if (t.alpha <= 0 || t.lifetime <= 0) trails.splice(i, 1);
+    });
+
+    particles.forEach((p, i) => {
+      p.update();
+      p.draw();
+      if (p.alpha <= 0 || p.lifetime <= 0) particles.splice(i, 1);
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+
+  const playBtn = document.getElementById('playBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const textEl = document.getElementById('text');
+  const textBackground = document.getElementById('text-background');
+  const message = "✨ Bữa trưa zui zẻ! Em xin lỗi, mong chị tha thứ ạ T.T";
+  const backgroundUrl = 'https://i.pinimg.com/originals/aa/91/29/aa9129bb589d680694087c7767934039.jpg';
+
+  playBtn.addEventListener('click', () => {
+    playBtn.style.display = 'none';
+
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        rockets.push(new Rocket());
+      }, i * 500);
+    }
+
+    setTimeout(() => {
+      canvas.style.display = 'none';
+      showTextAnimation();
+      showBackground();
+      resetBtn.style.display = 'inline-block';
+    }, 4000);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    location.reload();
+  });
+
+  function showTextAnimation() {
+    textEl.innerHTML = '';
+    for (let i = 0; i < message.length; i++) {
+      const span = document.createElement('span');
+      span.classList.add('letter');
+      span.textContent = message[i];
+      span.style.setProperty('--x', `${Math.floor(Math.random() * 200 - 100)}px`);
+      span.style.setProperty('--y', `${Math.floor(Math.random() * 200 - 100)}px`);
+      span.style.animationDelay = `${i * 0.05}s`;
+      textEl.appendChild(span);
+    }
+    textEl.style.display = 'block';
+  }
+
+  function showBackground() {
+    textBackground.style.backgroundImage = `url(${backgroundUrl})`;
+    textBackground.style.display = 'block';
+    setTimeout(() => {
+      textBackground.style.opacity = '1';
+    }, 10);
+  }
+
+  window.addEventListener('resize', () => {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  });
+</script>
+
+</body>
+</html>
