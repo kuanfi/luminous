@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>introl</title>
-<style>
+  <style>
     html, body {
         margin: 0;
         padding: 0;
@@ -94,7 +94,7 @@
             transform: translate(0, 0) scale(1) rotate(0deg);
         }
     }
-</style>
+  </style>
 </head>
 <body>
 
@@ -256,7 +256,7 @@
   const resetBtn = document.getElementById('resetBtn');
   const textEl = document.getElementById('text');
   const textBackground = document.getElementById('text-background');
-  const message = "✨  Have a fun lunch! I'm really sorry, please forgive me T.T";
+  const message = "✨ Have a fun lunch!\nI'm really sorry,please forgive me T.T";
   const backgroundUrl = 'https://i.pinimg.com/originals/aa/91/29/aa9129bb589d680694087c7767934039.jpg';
 
   playBtn.addEventListener('click', () => {
@@ -282,15 +282,17 @@
 
   function showTextAnimation() {
     textEl.innerHTML = '';
-    for (let i = 0; i < message.length; i++) {
+    const lines = message.split("\n");  // Split message into lines
+    lines.forEach((line, i) => {
       const span = document.createElement('span');
       span.classList.add('letter');
-      span.textContent = message[i];
+      span.textContent = line;
       span.style.setProperty('--x', `${Math.floor(Math.random() * 200 - 100)}px`);
       span.style.setProperty('--y', `${Math.floor(Math.random() * 200 - 100)}px`);
-      span.style.animationDelay = `${i * 0.05}s`;
+      span.style.animationDelay = `${i * 0.5}s`;
       textEl.appendChild(span);
-    }
+      textEl.appendChild(document.createElement('br'));  // Add line breaks between each line
+    });
     textEl.style.display = 'block';
   }
 
